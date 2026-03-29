@@ -1,20 +1,27 @@
-name: Setup Wild KSU
-description: Download and configure Wild KSU with version tracking
+name: Setup KernelSU
+description: Download and configure official KernelSU with version tracking
 inputs:
   ksu_commit:
     description: "KSU Commit"
     required: true
-    type: string
 
 runs:
   using: composite
   steps:
-    - name: Download Wild KSU
+    - name: Download KernelSU
       shell: bash
       working-directory: ${{ github.workspace }}/kernel
       run: |
-        # Clone the repository
-        curl -LSs "https://raw.githubusercontent.com/WildKernels/Wild_KSU/stable/kernel/setup.sh" | bash -s ${{ inputs.ksu_commit }}
+        RESOLVED_KSU_COMMIT="${{ inputs.ksu_commit }}"
+        if [ -z "$RESOLVED_KSU_COMMIT" ] && [ -n "${SUSFS_KSU_COMMIT:-}" ]; then
+          RESOLVED_KSU_COMMIT="$SUSFS_KSU_COMMIT"
+        fi
+
+        if [ -n "$RESOLVED_KSU_COMMIT" ]; then
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s "$RESOLVED_KSU_COMMIT"
+        else
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash
+        fi
 
     - name: Enable KernelSU Config
       shell: bash
@@ -25,10 +32,20 @@ runs:
         CONFIG_KSU=y
         EOF
     
+    - name: Append KernelSU exports
+      shell: bash
+      working-directory: ${{ github.workspace }}/kernel
+      run: |
+        if [ -f "${{ github.workspace }}/kernel/KernelSU/kernel/export_symbol.txt" ] && \
+           [ -f "${{ github.workspace }}/kernel/common/android/abi_gki_aarch64" ]; then
+          awk 'NF {sub("[ \t]+$", ""); print "  " $0}' "${{ github.workspace }}/kernel/KernelSU/kernel/export_symbol.txt" \
+            >> "${{ github.workspace }}/kernel/common/android/abi_gki_aarch64"
+        fi
+
     - name: Extract KSU Version Info
       id: ksu-version
       shell: bash
-      working-directory: ${{ github.workspace }}/kernel/Wild_KSU
+      working-directory: ${{ github.workspace }}/kernel/KernelSU
       run: |
         # Extract and export KSU version info
         KSU_GIT_VERSION=$(git rev-list --count HEAD 2>/dev/null)

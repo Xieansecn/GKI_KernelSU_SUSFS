@@ -179,8 +179,8 @@ jobs:
             sed -i '/#include <trace\/hooks\/blk.h>/a #include <trace\/hooks\/fs.h>' ./fs/namespace.c
         fi
 
-    - name: Setup Wild KSU
-      if: contains(inputs.feature_set, 'WKSU')
+    - name: Setup KernelSU
+      if: contains(inputs.feature_set, 'KSU')
       uses: ./.github/actions/wksu
       with:
         ksu_commit: ${{ inputs.ksu_commit }}
@@ -203,10 +203,6 @@ jobs:
         kernel_version: ${{ steps.parse.outputs.kernel_version }}
         os_patch_level: ${{ steps.parse.outputs.os_patch_level }}
         sublevel: ${{ steps.extract.outputs.sublevel }}
-
-    - name: Setup Baseband Guard
-      if: contains(inputs.feature_set, 'BBG')
-      uses: ./.github/actions/bbg
 
     - name: Apply Module Check Bypass
       if: ${{ inputs.variant == 'Bypass' || inputs.variant == 'Hakan' }}
@@ -326,9 +322,9 @@ jobs:
           # Copy fragment to kernel tree for bazel
           cp "$GITHUB_WORKSPACE/wild_gki.fragment" common/arch/arm64/configs/wild_gki.fragment
           if [[ "$ANDROID_VERSION" == "android14" ]]; then
-            tools/bazel build --config=fast --lto=thin --defconfig_fragment=//common:arch/arm64/configs/wild_gki.fragment //common:kernel_aarch64_dist || exit 1
+            tools/bazel build --config=fast --config=stamp --lto=thin --defconfig_fragment=//common:arch/arm64/configs/wild_gki.fragment //common:kernel_aarch64_dist || exit 1
           else
-            tools/bazel build --config=fast --lto=none --defconfig_fragment=//common:arch/arm64/configs/wild_gki.fragment //common:kernel_aarch64_dist || exit 1
+            tools/bazel build --config=fast --config=stamp --lto=none --defconfig_fragment=//common:arch/arm64/configs/wild_gki.fragment //common:kernel_aarch64_dist || exit 1
           fi
         fi
 
@@ -337,6 +333,8 @@ jobs:
         # Copy Image from normal build locations
         if [ -f "$GITHUB_WORKSPACE/kernel/out/$ANDROID_VERSION-$KERNEL_VERSION/dist/Image" ]; then
           cp "$GITHUB_WORKSPACE/kernel/out/$ANDROID_VERSION-$KERNEL_VERSION/dist/Image" "$GITHUB_WORKSPACE/AnyKernel3/Image"
+        elif [ -f "$GITHUB_WORKSPACE/kernel/dist/Image" ]; then
+          cp "$GITHUB_WORKSPACE/kernel/dist/Image" "$GITHUB_WORKSPACE/AnyKernel3/Image"
         elif [ -f "$GITHUB_WORKSPACE/kernel/bazel-bin/common/kernel_aarch64/Image" ]; then
           cp "$GITHUB_WORKSPACE/kernel/bazel-bin/common/kernel_aarch64/Image" "$GITHUB_WORKSPACE/AnyKernel3/Image"
         else
@@ -414,6 +412,14 @@ jobs:
     - name: Build Summary
       if: ${{ always() }}
       run: |
+        if [ -n "${{ inputs.ksu_commit }}" ]; then
+          SUMMARY_KSU_COMMIT="${{ inputs.ksu_commit }}"
+        elif [ -n "${SUSFS_KSU_COMMIT:-}" ]; then
+          SUMMARY_KSU_COMMIT="$SUSFS_KSU_COMMIT"
+        else
+          SUMMARY_KSU_COMMIT="main"
+        fi
+
         # Kernel info
         echo "Android Version     : $ANDROID_VERSION"
         echo "Kernel Version      : $KERNEL_VERSION"
@@ -427,11 +433,9 @@ jobs:
         echo "Build Type          : ${{ inputs.variant || 'Normal' }}"
         # Features info
         echo "Features            : ${{ inputs.feature_set || 'None' }}"
-        echo "WKSU Commit         : ${{ inputs.ksu_commit || 'canary' }}"
-        echo "WKSU Tag            : $KSU_GIT_TAG"
-        echo "WKSU Version        : $KSU_VERSION"
-        echo "BBG Commit          : $BBG_COMMIT"
-        echo "BBG Version         : $BBG_VERSION"
+        echo "KSU Commit          : $SUMMARY_KSU_COMMIT"
+        echo "KSU Tag             : $KSU_GIT_TAG"
+        echo "KSU Version         : $KSU_VERSION"
         # Variant info
         echo "Variant             : ${{ inputs.variant || 'Standard' }}"
         echo "Features            : ${{ inputs.feature_set || 'None' }}"

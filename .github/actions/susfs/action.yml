@@ -56,6 +56,14 @@ runs:
           git clone "$SUSFS_REPO" -b "$SUSFS_BRANCH" --depth=1 susfs4ksu
         fi
         
+        SUSFS_KSU_COMMIT=$(git -C susfs4ksu log --max-count=1 | grep -oE 'tiann/KernelSU/commit/[0-9a-f]+' | awk -F/ '{print $NF}')
+        if [ -n "$SUSFS_KSU_COMMIT" ]; then
+          echo "Resolved KernelSU commit from SUSFS sync note: $SUSFS_KSU_COMMIT"
+          echo "SUSFS_KSU_COMMIT=$SUSFS_KSU_COMMIT" >> "$GITHUB_ENV"
+        else
+          echo "No KernelSU sync commit found in SUSFS history; workflow input or latest main will be used."
+        fi
+
         SUSFS_VERSION="2.0.0"
         echo "SUSFS_VERSION=$SUSFS_VERSION" >> $GITHUB_ENV
 

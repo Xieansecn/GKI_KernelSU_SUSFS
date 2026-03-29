@@ -17,6 +17,16 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Patch KernelSU for SUSFS
+      shell: bash
+      working-directory: ${{ github.workspace }}/kernel
+      run: |
+        if [ -d KernelSU ] && [ -f "${{ github.workspace }}/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" ]; then
+          cp "${{ github.workspace }}/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch" KernelSU/
+          cd KernelSU
+          patch --forward -p1 < 10_enable_susfs_for_ksu.patch
+        fi
+
     - name: Apply Android 12 5.10 Fixes
       if: inputs.android_version == 'android12' && inputs.kernel_version == '5.10'
       shell: bash
