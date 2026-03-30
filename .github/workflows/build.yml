@@ -360,6 +360,28 @@ jobs:
         cp "$SRC_DIR/snd-aloop.ko" "$GITHUB_WORKSPACE/AnyKernel3/modules/data/adb/lkm/"
         cp "$SRC_DIR/g_audio.ko" "$GITHUB_WORKSPACE/AnyKernel3/modules/data/adb/lkm/"
 
+    - name: Collect original kernel Image
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/Image-output"
+        if [ -f "$GITHUB_WORKSPACE/kernel/out/$ANDROID_VERSION-$KERNEL_VERSION/dist/Image" ]; then
+          cp "$GITHUB_WORKSPACE/kernel/out/$ANDROID_VERSION-$KERNEL_VERSION/dist/Image" "$GITHUB_WORKSPACE/Image-output/Image"
+        elif [ -f "$GITHUB_WORKSPACE/kernel/dist/Image" ]; then
+          cp "$GITHUB_WORKSPACE/kernel/dist/Image" "$GITHUB_WORKSPACE/Image-output/Image"
+        elif [ -f "$GITHUB_WORKSPACE/kernel/bazel-bin/common/kernel_aarch64/Image" ]; then
+          cp "$GITHUB_WORKSPACE/kernel/bazel-bin/common/kernel_aarch64/Image" "$GITHUB_WORKSPACE/Image-output/Image"
+        else
+          echo "Error: Image file not found in any expected location"
+          exit 1
+        fi
+
+    - name: Upload raw kernel Image
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.extract.outputs.file_name }}-Image
+        path: Image-output/Image
+        if-no-files-found: ignore
+        compression-level: 0
+
     - name: Scan and collect patch rejects
       id: scan
       if: ${{ always() }}

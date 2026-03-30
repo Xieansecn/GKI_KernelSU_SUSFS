@@ -12,7 +12,7 @@ runs:
       shell: bash
       working-directory: ${{ github.workspace }}/kernel
       run: |
-        echo "no config"
+        cat "${{ github.workspace }}/.github/kernel-config/fragments/common.fragment" >> "${{ github.workspace }}/wild_gki.fragment"
       
 
     - name: Apply Kernel Config for 5.10
